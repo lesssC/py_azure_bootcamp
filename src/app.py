@@ -17,7 +17,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.logo("assets/chambaya-logo.svg", size="large")
+st.image("assets/chambaya-logo.svg", width=180)
 st.markdown(
     """
     <style>
@@ -28,7 +28,13 @@ st.markdown(
         --ivory: #E6EBE0;
         --aqua: #36C9C6;
     }
-    .block-container { max-width: 1180px; padding-top: 2rem; }
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
+        overflow-x: hidden;
+    }
+    .block-container { max-width: 1180px; padding-top: 1rem; }
+    [data-testid="stImage"] {
+        margin: 0 0 0.35rem;
+    }
     [data-testid="stSidebar"] [data-testid="stSidebarHeader"] { padding-top: 1rem; }
     [data-testid="stHeader"] { background: transparent; }
     [data-testid="stAppViewContainer"] {
@@ -58,10 +64,15 @@ st.markdown(
     div[data-testid="stAlert"] {
         border-radius: 0.85rem; border: 1px solid rgba(49, 91, 89, .16);
     }
-    [data-testid="stDataFrame"] { overflow-x: auto; }
-    @media (max-width: 760px) {
+    [data-testid="stDataFrame"] {
+        max-width: 100%;
+        overflow: hidden;
+    }
+    .mobile-catalog { display: none; }
+    @media (max-width: 900px) {
         .block-container { padding: 1rem 0.85rem 2rem; }
         [data-testid="stSidebar"] { display: none; }
+        [data-testid="stImage"] { margin-bottom: 0.25rem; }
         .brand-kicker { font-size: 0.7rem; }
         .brand-title { font-size: 2.65rem; }
         .hero-copy { font-size: 0.98rem; line-height: 1.4; }
@@ -69,6 +80,7 @@ st.markdown(
         div[data-testid="stHorizontalBlock"] { gap: 0.5rem; }
         div[data-testid="stButton"] button { min-height: 2.7rem; font-size: 0.82rem; }
         [data-testid="stDataFrame"] { display: none; }
+        .mobile-catalog { display: block; }
         .mobile-catalog-card {
             display: block;
             background: rgba(255, 255, 255, 0.58);
@@ -80,7 +92,7 @@ st.markdown(
         .mobile-catalog-title { color: #173b3a; font-weight: 750; }
         .mobile-catalog-meta { color: #315b59; font-size: 0.86rem; line-height: 1.5; }
     }
-    @media (min-width: 761px) {
+    @media (min-width: 901px) {
         .mobile-catalog-card { display: none; }
     }
     </style>

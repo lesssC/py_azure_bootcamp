@@ -35,6 +35,17 @@ GO
 CREATE INDEX IX_Ofertas_Activas ON OfertasOportunidades (Activo, Fuente);
 GO
 
+CREATE TABLE Usuarios (
+    UsuarioID INT IDENTITY(1,1) PRIMARY KEY,
+    NombreCompleto VARCHAR(100) NOT NULL,
+    Correo VARCHAR(150) NOT NULL UNIQUE,
+    PasswordHash VARCHAR(300) NOT NULL,
+    Rol VARCHAR(20) NOT NULL DEFAULT 'usuario',
+    Activo BIT NOT NULL DEFAULT 1,
+    FechaRegistro DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
 INSERT INTO OfertasOportunidades
     (TituloVacante, Fuente, DireccionUbicacion, TelefonoContacto, RequisitosMinimos)
 VALUES

@@ -1,5 +1,4 @@
 import html
-import os
 
 import streamlit as st
 
@@ -12,6 +11,8 @@ from ai_agent import (
     estado_catalogo,
     extraer_texto_anuncio,
     estructurar_anuncio,
+    iniciar_sesion,
+    registrar_usuario,
     registrar_oferta_bd,
 )
 
@@ -111,11 +112,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-tab_kiosco, tab_catalogo, tab_bodega, tab_admin = st.tabs(
+tab_kiosco, tab_catalogo, tab_bodega, tab_cuenta, tab_admin = st.tabs(
     [
         ":material/search: Buscar oportunidades",
         ":material/list_alt: Catálogo",
         ":material/add_a_photo: Registrar anuncio",
+        ":material/account_circle: Mi cuenta",
         ":material/admin_panel_settings: Administración",
     ]
 )
@@ -298,22 +300,74 @@ with tab_bodega:
             icon=":material/info:",
         )
 
-with tab_admin:
-    st.subheader("Administración de oportunidades")
-    admin_user = st.text_input("Usuario administrador", key="admin_user")
-    admin_password = st.text_input("Contraseña", type="password", key="admin_password")
-    if st.button(":material/login: Ingresar", type="primary"):
-        if (
-            admin_user == os.getenv("ADMIN_USERNAME", "")
-            and admin_password == os.getenv("ADMIN_PASSWORD", "")
-            and admin_user
-        ):
-            st.session_state["admin_authenticated"] = True
-            st.toast("Sesión administrativa iniciada.")
+with tab_cuenta:
+    st.subheader("Mi cuenta")
+    if st.session_state.get("usuario"):
+        usuario = st.session_state["usuario"]
+        st.success(
+            f"Sesión iniciada como {usuario['nombre']} ({usuario['rol']}).",
+            icon=":material/account_circle:",
+        )
+        if st.button(":material/logout: Cerrar sesión"):
+            st.session_state.pop("usuario")
+            st.rerun()
+    else:
+        modo_cuenta = st.radio(
+            "¿Qué deseas hacer?",
+            ["Iniciar sesión", "Crear cuenta"],
+            horizontal=True,
+        )
+        if modo_cuenta == "Iniciar sesión":
+            correo = st.text_input("Correo electrónico", key="login_correo")
+            password = st.text_input("Contraseña", type="password", key="login_password")
+            if st.button(":material/login: Ingresar", type="primary"):
+                try:
+                    usuario = iniciar_sesion(correo, password)
+                except RuntimeError as error:
+                    st.error(str(error))
+                else:
+                    if usuario:
+                        st.session_state["usuario"] = usuario
+                        st.toast("Sesión iniciada correctamente.")
+                        st.rerun()
+                    else:
+                        st.error("Correo o contraseña incorrectos.", icon=":material/lock:")
         else:
-            st.error("Usuario o contraseña incorrectos.", icon=":material/lock:")
+            nombre = st.text_input("Nombre completo", key="registro_nombre")
+            correo = st.text_input("Correo electrónico", key="registro_correo")
+            password = st.text_input(
+                "Contraseña (mínimo 8 caracteres)",
+                type="password",
+                key="registro_password",
+            )
+            invite_code = st.text_input(
+                "Código de invitación para administrador (opcional)",
+                type="password",
+                key="registro_invite",
+                help="Déjalo vacío para crear una cuenta de usuario.",
+            )
+            if st.button(":material/person_add: Registrarme", type="primary"):
+                try:
+                    rol = registrar_usuario(nombre, correo, password, invite_code)
+                except (RuntimeError, ValueError) as error:
+                    st.error(str(error))
+                else:
+                    st.success(
+                        "Cuenta de administrador creada."
+                        if rol == "admin"
+                        else "Cuenta creada. Ya puedes iniciar sesión.",
+                        icon=":material/check_circle:",
+                    )
 
-    if st.session_state.get("admin_authenticated"):
+with tab_admin:
+    usuario = st.session_state.get("usuario")
+    if not usuario or usuario.get("rol") != "admin":
+        st.info(
+            "Inicia sesión con una cuenta administradora para gestionar las ofertas.",
+            icon=":material/lock:",
+        )
+    else:
+        st.subheader("Administración de oportunidades")
         ofertas_admin = consultar_ofertas_admin()
         for oferta in ofertas_admin:
             with st.expander(

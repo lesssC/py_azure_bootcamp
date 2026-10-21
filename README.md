@@ -165,11 +165,12 @@ aceptar el arranque en frío.
 
 El catálogo público se ordena por `FechaRegistro` descendente y las ofertas
 desactivadas dejan de mostrarse como disponibles, pero permanecen en Azure SQL
-para auditoría. La pestaña **Administración** requiere las variables secretas
-`ADMIN_USERNAME` y `ADMIN_PASSWORD`; no las guardes en el repositorio. En
-producción deben configurarse como secretos de Container Apps y exponerse a la
-revisión mediante referencias de secreto. La cuenta administradora puede
-editar ofertas, reactivarlas o marcarlas como no disponibles.
+para auditoría. Las personas pueden crear una cuenta e iniciar sesión desde
+**Mi cuenta**. El primer administrador se registra usando un código secreto de
+invitación (`ADMIN_INVITE_CODE`); las demás cuentas se crean con rol
+`usuario`. Solo el rol `admin` puede editar ofertas, reactivarlas o marcarlas
+como no disponibles desde **Administración**. El código debe configurarse como
+secreto de Container Apps y nunca publicarse en el repositorio.
 
 > Azure SQL Serverless, Container Apps a cero y Log Analytics no significan
 > costo total garantizado de cero. Revisa Cost Management y elimina el grupo de

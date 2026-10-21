@@ -1,6 +1,7 @@
 """Fachada de compatibilidad para los servicios de chambaYA."""
 
 from services.announcement import estructurar_anuncio
+from services.auth import iniciar_sesion, registrar_usuario
 from services.catalog import (
     consultar_vacantes_bd,
     consultar_ofertas_admin,
@@ -22,4 +23,6 @@ __all__ = [
     "extraer_texto_anuncio",
     "estructurar_anuncio",
     "registrar_oferta_bd",
+    "iniciar_sesion",
+    "registrar_usuario",
 ]

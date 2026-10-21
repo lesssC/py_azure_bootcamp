@@ -1,10 +1,14 @@
 import html
+import os
 
 import streamlit as st
 
 from ai_agent import (
     agente_match_habilidades,
+    actualizar_oferta_bd,
+    consultar_ofertas_admin,
     consultar_vacantes_bd,
+    desactivar_oferta_bd,
     estado_catalogo,
     extraer_texto_anuncio,
     estructurar_anuncio,
@@ -107,8 +111,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-tab_kiosco, tab_bodega = st.tabs(
-    [":material/search: Buscar oportunidades", ":material/add_a_photo: Registrar anuncio"]
+tab_kiosco, tab_catalogo, tab_bodega, tab_admin = st.tabs(
+    [
+        ":material/search: Buscar oportunidades",
+        ":material/list_alt: Catálogo",
+        ":material/add_a_photo: Registrar anuncio",
+        ":material/admin_panel_settings: Administración",
+    ]
 )
 
 with tab_kiosco:
@@ -156,50 +165,47 @@ with tab_kiosco:
                 icon=":material/print:",
             )
 
-    with st.expander(":material/list_alt: Ver catálogo disponible"):
-        catalogo = consultar_vacantes_bd()
-        if estado_catalogo().startswith("Azure SQL"):
-            st.success(estado_catalogo(), icon=":material/cloud_done:")
-        else:
-            st.warning(
-                "Estamos mostrando opciones de respaldo mientras se conecta el catálogo.",
-                icon=":material/cloud_off:",
-            )
-        st.dataframe(
-            catalogo,
-            width="stretch",
-            hide_index=True,
-            column_config={
-                "id": st.column_config.NumberColumn("ID", width="small"),
-                "titulo": st.column_config.TextColumn("Vacante", width="medium"),
-                "fuente": st.column_config.TextColumn("Fuente", width="small"),
-                "direccion": st.column_config.TextColumn("Dirección", width="medium"),
-                "telefono": st.column_config.TextColumn("Contacto", width="small"),
-                "req": st.column_config.TextColumn("Requisitos", width="medium"),
-            },
+with tab_catalogo:
+    st.subheader("Oportunidades disponibles")
+    catalogo = consultar_vacantes_bd()
+    if estado_catalogo().startswith("Azure SQL"):
+        st.success(estado_catalogo(), icon=":material/cloud_done:")
+    else:
+        st.warning(
+            "Estamos mostrando opciones de respaldo mientras se conecta el catálogo.",
+            icon=":material/cloud_off:",
         )
-        st.markdown('<div class="mobile-catalog">', unsafe_allow_html=True)
-        for oferta in catalogo:
-            titulo_seguro = html.escape(str(oferta["titulo"]))
-            fuente_segura = html.escape(str(oferta["fuente"]))
-            direccion_segura = html.escape(str(oferta["direccion"]))
-            telefono_seguro = html.escape(str(oferta["telefono"]))
-            requisitos_seguro = html.escape(str(oferta["req"]))
-            st.markdown(
-                f"""
-                <article class="mobile-catalog-card">
-                    <div class="mobile-catalog-title">{titulo_seguro}</div>
-                    <div class="mobile-catalog-meta">
-                        <strong>Fuente:</strong> {fuente_segura}<br>
-                        <strong>Dirección:</strong> {direccion_segura}<br>
-                        <strong>Contacto:</strong> {telefono_seguro}<br>
-                        <strong>Requisitos:</strong> {requisitos_seguro}
-                    </div>
-                </article>
-                """,
-                unsafe_allow_html=True,
-            )
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.dataframe(
+        catalogo,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "titulo": st.column_config.TextColumn("Vacante", width="medium"),
+            "fuente": st.column_config.TextColumn("Fuente", width="small"),
+            "direccion": st.column_config.TextColumn("Dirección", width="medium"),
+            "telefono": st.column_config.TextColumn("Contacto", width="small"),
+            "req": st.column_config.TextColumn("Requisitos", width="medium"),
+            "fecha": st.column_config.DatetimeColumn("Publicada", format="DD/MM/YYYY HH:mm"),
+        },
+    )
+    st.markdown('<div class="mobile-catalog">', unsafe_allow_html=True)
+    for oferta in catalogo:
+        st.markdown(
+            f"""
+            <article class="mobile-catalog-card">
+                <div class="mobile-catalog-title">{html.escape(str(oferta["titulo"]))}</div>
+                <div class="mobile-catalog-meta">
+                    <strong>Publicada:</strong> {html.escape(str(oferta.get("fecha", "")))}<br>
+                    <strong>Fuente:</strong> {html.escape(str(oferta["fuente"]))}<br>
+                    <strong>Dirección:</strong> {html.escape(str(oferta["direccion"]))}<br>
+                    <strong>Contacto:</strong> {html.escape(str(oferta["telefono"]))}<br>
+                    <strong>Requisitos:</strong> {html.escape(str(oferta["req"]))}
+                </div>
+            </article>
+            """,
+            unsafe_allow_html=True,
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with tab_bodega:
     st.subheader("Digitalizar un anuncio")
@@ -207,7 +213,7 @@ with tab_bodega:
     foto = st.file_uploader(
         "Selecciona una foto del aviso",
         type=["jpg", "jpeg", "png"],
-        key="foto_anuncio",
+        key=f"foto_anuncio_{st.session_state.get('uploader_version', 0)}",
     )
     if foto:
         foto_bytes = foto.getvalue()
@@ -277,9 +283,13 @@ with tab_bodega:
                     f"La oferta #{oferta_id} quedó publicada en el catálogo.",
                     icon=":material/check_circle:",
                 )
+                st.toast("Aviso publicado correctamente.")
                 st.session_state.pop("texto_anuncio", None)
                 st.session_state.pop("campos_anuncio", None)
-                st.session_state.pop("foto_anuncio", None)
+                st.session_state["uploader_version"] = st.session_state.get(
+                    "uploader_version", 0
+                ) + 1
+                st.session_state["abrir_catalogo"] = True
                 st.rerun()
     else:
         st.info(
@@ -287,3 +297,45 @@ with tab_bodega:
             "anuncio en el catálogo.",
             icon=":material/info:",
         )
+
+with tab_admin:
+    st.subheader("Administración de oportunidades")
+    admin_user = st.text_input("Usuario administrador", key="admin_user")
+    admin_password = st.text_input("Contraseña", type="password", key="admin_password")
+    if st.button(":material/login: Ingresar", type="primary"):
+        if (
+            admin_user == os.getenv("ADMIN_USERNAME", "")
+            and admin_password == os.getenv("ADMIN_PASSWORD", "")
+            and admin_user
+        ):
+            st.session_state["admin_authenticated"] = True
+            st.toast("Sesión administrativa iniciada.")
+        else:
+            st.error("Usuario o contraseña incorrectos.", icon=":material/lock:")
+
+    if st.session_state.get("admin_authenticated"):
+        ofertas_admin = consultar_ofertas_admin()
+        for oferta in ofertas_admin:
+            with st.expander(
+                f"{'Disponible' if oferta['activo'] else 'No disponible'} · "
+                f"{oferta['titulo']} · {oferta['fecha']}"
+            ):
+                with st.form(f"editar_oferta_{oferta['id']}"):
+                    nuevo_titulo = st.text_input("Título", oferta["titulo"])
+                    nueva_fuente = st.text_input("Fuente", oferta["fuente"])
+                    nueva_direccion = st.text_input("Dirección", oferta["direccion"])
+                    nuevo_telefono = st.text_input("Teléfono", oferta["telefono"])
+                    nuevos_requisitos = st.text_area("Requisitos", oferta["req"])
+                    nueva_activa = st.checkbox("Disponible en el catálogo", oferta["activo"])
+                    guardar_cambios = st.form_submit_button("Guardar cambios")
+                if guardar_cambios:
+                    actualizar_oferta_bd(
+                        oferta["id"], nuevo_titulo, nueva_fuente, nueva_direccion,
+                        nuevo_telefono, nuevos_requisitos, nueva_activa,
+                    )
+                    st.toast("Oferta actualizada.")
+                    st.rerun()
+                if st.button("Desactivar oferta", key=f"desactivar_{oferta['id']}"):
+                    desactivar_oferta_bd(oferta["id"])
+                    st.toast("Oferta marcada como no disponible.")
+                    st.rerun()

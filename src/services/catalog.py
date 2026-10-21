@@ -31,7 +31,7 @@ def consultar_vacantes_bd() -> list[dict[str, Any]]:
             cursor.execute(
                 """
                 SELECT OfertaID, TituloVacante, Fuente, DireccionUbicacion,
-                       TelefonoContacto, RequisitosMinimos
+                       TelefonoContacto, RequisitosMinimos, FechaRegistro
                 FROM OfertasOportunidades
                 WHERE Activo = 1
                 ORDER BY FechaRegistro DESC
@@ -40,7 +40,8 @@ def consultar_vacantes_bd() -> list[dict[str, Any]]:
             offers = [
                 {"id": row[0], "titulo": row[1], "fuente": row[2],
                  "direccion": row[3], "telefono": row[4],
-                 "req": row[5] or "Consultar detalles al contacto."}
+                 "req": row[5] or "Consultar detalles al contacto.",
+                 "fecha": row[6]}
                 for row in cursor.fetchall()
             ]
             _database_status = f"Azure SQL: {len(offers)} ofertas activas"
@@ -81,3 +82,63 @@ def registrar_oferta_bd(titulo: str, fuente: str, direccion: str, telefono: str,
     except (OSError, ValueError, pyodbc.Error) as error:
         logger.exception("No fue posible guardar la oferta en Azure SQL.")
         raise RuntimeError("No fue posible guardar la oferta en Azure SQL.") from error
+
+
+def consultar_ofertas_admin() -> list[dict[str, Any]]:
+    connection_string, attributes = sql_connection()
+    with pyodbc.connect(connection_string, attrs_before=attributes, timeout=8) as connection:
+        rows = connection.cursor().execute(
+            """
+            SELECT OfertaID, TituloVacante, Fuente, DireccionUbicacion,
+                   TelefonoContacto, RequisitosMinimos, FechaRegistro, Activo
+            FROM OfertasOportunidades
+            ORDER BY FechaRegistro DESC
+            """
+        ).fetchall()
+        return [
+            {
+                "id": row[0], "titulo": row[1], "fuente": row[2],
+                "direccion": row[3], "telefono": row[4],
+                "req": row[5] or "", "fecha": row[6], "activo": bool(row[7]),
+            }
+            for row in rows
+        ]
+
+
+def actualizar_oferta_bd(
+    oferta_id: int, titulo: str, fuente: str, direccion: str,
+    telefono: str, requisitos: str, activo: bool
+) -> None:
+    values = [titulo.strip(), fuente.strip(), direccion.strip(), telefono.strip()]
+    if not all(values):
+        raise ValueError("Completa título, fuente, dirección y teléfono.")
+    try:
+        connection_string, attributes = sql_connection()
+        with pyodbc.connect(connection_string, attrs_before=attributes, timeout=8) as connection:
+            connection.cursor().execute(
+                """
+                UPDATE OfertasOportunidades
+                SET TituloVacante = ?, Fuente = ?, DireccionUbicacion = ?,
+                    TelefonoContacto = ?, RequisitosMinimos = ?, Activo = ?
+                WHERE OfertaID = ?
+                """,
+                *values, requisitos.strip() or None, int(activo), oferta_id,
+            )
+            connection.commit()
+    except (OSError, ValueError, pyodbc.Error) as error:
+        logger.exception("No fue posible actualizar la oferta en Azure SQL.")
+        raise RuntimeError("No fue posible actualizar la oferta.") from error
+
+
+def desactivar_oferta_bd(oferta_id: int) -> None:
+    try:
+        connection_string, attributes = sql_connection()
+        with pyodbc.connect(connection_string, attrs_before=attributes, timeout=8) as connection:
+            connection.cursor().execute(
+                "UPDATE OfertasOportunidades SET Activo = 0 WHERE OfertaID = ?",
+                oferta_id,
+            )
+            connection.commit()
+    except (OSError, ValueError, pyodbc.Error) as error:
+        logger.exception("No fue posible cambiar el estado de la oferta.")
+        raise RuntimeError("No fue posible cambiar el estado de la oferta.") from error

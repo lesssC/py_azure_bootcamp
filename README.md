@@ -161,6 +161,16 @@ activa mejora la experiencia de entrada, pero no permite que el cómputo baje a
 cero; si se prioriza el ahorro máximo, puedes usar `containerMinReplicas=0` y
 aceptar el arranque en frío.
 
+## Administración del catálogo
+
+El catálogo público se ordena por `FechaRegistro` descendente y las ofertas
+desactivadas dejan de mostrarse como disponibles, pero permanecen en Azure SQL
+para auditoría. La pestaña **Administración** requiere las variables secretas
+`ADMIN_USERNAME` y `ADMIN_PASSWORD`; no las guardes en el repositorio. En
+producción deben configurarse como secretos de Container Apps y exponerse a la
+revisión mediante referencias de secreto. La cuenta administradora puede
+editar ofertas, reactivarlas o marcarlas como no disponibles.
+
 > Azure SQL Serverless, Container Apps a cero y Log Analytics no significan
 > costo total garantizado de cero. Revisa Cost Management y elimina el grupo de
 > recursos al terminar la evaluación.

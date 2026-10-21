@@ -318,9 +318,13 @@ with tab_cuenta:
             horizontal=True,
         )
         if modo_cuenta == "Iniciar sesión":
-            correo = st.text_input("Correo electrónico", key="login_correo")
-            password = st.text_input("Contraseña", type="password", key="login_password")
-            if st.button(":material/login: Ingresar", type="primary"):
+            with st.form("formulario_inicio_sesion"):
+                correo = st.text_input("Correo electrónico")
+                password = st.text_input("Contraseña", type="password")
+                ingresar = st.form_submit_button(
+                    ":material/login: Ingresar", type="primary"
+                )
+            if ingresar:
                 try:
                     usuario = iniciar_sesion(correo, password)
                 except RuntimeError as error:
@@ -333,20 +337,21 @@ with tab_cuenta:
                     else:
                         st.error("Correo o contraseña incorrectos.", icon=":material/lock:")
         else:
-            nombre = st.text_input("Nombre completo", key="registro_nombre")
-            correo = st.text_input("Correo electrónico", key="registro_correo")
-            password = st.text_input(
-                "Contraseña (mínimo 8 caracteres)",
-                type="password",
-                key="registro_password",
-            )
-            invite_code = st.text_input(
-                "Código de invitación para administrador (opcional)",
-                type="password",
-                key="registro_invite",
-                help="Déjalo vacío para crear una cuenta de usuario.",
-            )
-            if st.button(":material/person_add: Registrarme", type="primary"):
+            with st.form("formulario_registro_usuario"):
+                nombre = st.text_input("Nombre completo")
+                correo = st.text_input("Correo electrónico")
+                password = st.text_input(
+                    "Contraseña (mínimo 8 caracteres)", type="password"
+                )
+                invite_code = st.text_input(
+                    "Código de invitación para administrador (opcional)",
+                    type="password",
+                    help="Déjalo vacío para crear una cuenta de usuario.",
+                )
+                registrar = st.form_submit_button(
+                    ":material/person_add: Registrarme", type="primary"
+                )
+            if registrar:
                 try:
                     rol = registrar_usuario(nombre, correo, password, invite_code)
                 except (RuntimeError, ValueError) as error:

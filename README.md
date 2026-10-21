@@ -192,6 +192,21 @@ La identidad federada necesita permisos de Contributor sobre el grupo de
 recursos y la identidad de Container Apps necesita `AcrPull`, asignado por
 Bicep. No uses `AZURE_CREDENTIALS` ni publiques claves de servicio.
 
+Para crear la aplicación federada, registra una aplicación en **Microsoft Entra
+ID > App registrations**, agrega una credencial federada con:
+
+- Organization: `lesssC`
+- Repository: `py_azure_bootcamp`
+- Entity type: `Branch`
+- Branch: `main`
+- Audience: `api://AzureADTokenExchange`
+
+Asigna a esa aplicación el rol **Contributor** sobre
+`rg-redsosten-student`. Después guarda su **Application (client) ID** como
+`AZURE_CLIENT_ID`. El tenant es
+`c4a66c34-2bb7-451f-8be1-b2c26a430158` y la suscripción es
+`8d336fc4-f6af-4475-97e7-c6ca477e661a`.
+
 El deployment activo de Azure OpenAI es `gpt-4-1-mini` sobre
 `gpt-4.1-mini` con SKU `GlobalStandard`. `gpt-4o-mini` fue retirado en la
 región/fecha de esta entrega y no tiene cuota Standard disponible en la

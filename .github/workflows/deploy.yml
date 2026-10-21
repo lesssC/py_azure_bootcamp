@@ -1,4 +1,4 @@
-name: Build and deploy RedSosten
+name: Build and deploy chambaYA
 
 on:
   push:
@@ -19,6 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate deployment configuration
+        env:
+          CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+        run: |
+          missing=()
+          [ -z "$CLIENT_ID" ] && missing+=("AZURE_CLIENT_ID")
+          [ -z "$TENANT_ID" ] && missing+=("AZURE_TENANT_ID")
+          [ -z "$SUBSCRIPTION_ID" ] && missing+=("AZURE_SUBSCRIPTION_ID")
+          [ -z "$RESOURCE_GROUP" ] && missing+=("AZURE_RESOURCE_GROUP")
+          [ -z "$ACR_NAME" ] && missing+=("AZURE_ACR_NAME")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Faltan secretos de GitHub: ${missing[*]}"
+            exit 1
+          fi
       - name: Login to Azure
         uses: azure/login@v2
         with:

@@ -1,0 +1,614 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.48.1.52935",
+      "templateHash": "17158390537252639914"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "westus",
+      "metadata": {
+        "description": "Region de Azure para los recursos."
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-redsosten-student"
+    },
+    "sqlAdminLogin": {
+      "type": "string",
+      "defaultValue": "adminredsosten"
+    },
+    "sqlAdminPassword": {
+      "type": "securestring"
+    },
+    "openAiDeployment": {
+      "type": "string",
+      "defaultValue": "gpt-4.1-mini"
+    },
+    "entraAdminObjectId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "entraAdminLogin": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "containerImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Imagen inicial para la validacion de infraestructura."
+      }
+    },
+    "containerTargetPort": {
+      "type": "int",
+      "defaultValue": 80
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2024-03-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "redsosten-infrastructure",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "sqlAdminLogin": {
+            "value": "[parameters('sqlAdminLogin')]"
+          },
+          "sqlAdminPassword": {
+            "value": "[parameters('sqlAdminPassword')]"
+          },
+          "openAiDeployment": {
+            "value": "[parameters('openAiDeployment')]"
+          },
+          "entraAdminObjectId": {
+            "value": "[parameters('entraAdminObjectId')]"
+          },
+          "entraAdminLogin": {
+            "value": "[parameters('entraAdminLogin')]"
+          },
+          "containerImage": {
+            "value": "[parameters('containerImage')]"
+          },
+          "containerTargetPort": {
+            "value": "[parameters('containerTargetPort')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.48.1.52935",
+              "templateHash": "2690061817010114113"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "sqlAdminLogin": {
+              "type": "string"
+            },
+            "sqlAdminPassword": {
+              "type": "securestring"
+            },
+            "openAiDeployment": {
+              "type": "string"
+            },
+            "entraAdminObjectId": {
+              "type": "string"
+            },
+            "entraAdminLogin": {
+              "type": "string"
+            },
+            "containerImage": {
+              "type": "string"
+            },
+            "containerTargetPort": {
+              "type": "int"
+            }
+          },
+          "variables": {
+            "suffix": "[toLower(uniqueString(resourceGroup().id, parameters('location')))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('log-redsosten-{0}', variables('suffix'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-01-01",
+              "name": "vnet-redsosten",
+              "location": "[parameters('location')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "10.0.0.0/16"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2024-01-01",
+              "name": "nsg-redsosten-db",
+              "location": "[parameters('location')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "DenyInternetInbound",
+                    "properties": {
+                      "priority": 100,
+                      "protocol": "*",
+                      "access": "Deny",
+                      "direction": "Inbound",
+                      "sourceAddressPrefix": "Internet",
+                      "sourcePortRange": "*",
+                      "destinationAddressPrefix": "*",
+                      "destinationPortRange": "*"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}', 'vnet-redsosten', 'snet-app')]",
+              "properties": {
+                "addressPrefix": "10.0.0.0/23",
+                "delegations": [
+                  {
+                    "name": "container-apps",
+                    "properties": {
+                      "serviceName": "Microsoft.App/environments"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', 'vnet-redsosten')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}', 'vnet-redsosten', 'snet-db')]",
+              "properties": {
+                "addressPrefix": "10.0.2.0/24",
+                "privateEndpointNetworkPolicies": "Disabled",
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-redsosten-db')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-redsosten-db')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', 'vnet-redsosten')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2023-08-01-preview",
+              "name": "[format('sql-redsosten-{0}', variables('suffix'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "administratorLogin": "[parameters('sqlAdminLogin')]",
+                "administratorLoginPassword": "[parameters('sqlAdminPassword')]",
+                "publicNetworkAccess": "Disabled",
+                "minimalTlsVersion": "1.2"
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('entraAdminObjectId')))]",
+              "type": "Microsoft.Sql/servers/administrators",
+              "apiVersion": "2022-05-01-preview",
+              "name": "[format('{0}/{1}', format('sql-redsosten-{0}', variables('suffix')), 'ActiveDirectory')]",
+              "properties": {
+                "administratorType": "ActiveDirectory",
+                "login": "[parameters('entraAdminLogin')]",
+                "sid": "[parameters('entraAdminObjectId')]",
+                "tenantId": "[subscription().tenantId]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', format('sql-redsosten-{0}', variables('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers/databases",
+              "apiVersion": "2023-08-01-preview",
+              "name": "[format('{0}/{1}', format('sql-redsosten-{0}', variables('suffix')), 'sqldb-redsosten')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "GP_S_Gen5_1",
+                "tier": "GeneralPurpose",
+                "family": "Gen5",
+                "capacity": 1
+              },
+              "properties": {
+                "autoPauseDelay": 60,
+                "minCapacity": "[json('0.5')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', format('sql-redsosten-{0}', variables('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2024-01-01",
+              "name": "pe-sql-redsosten",
+              "location": "[parameters('location')]",
+              "properties": {
+                "subnet": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'vnet-redsosten', 'snet-db')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "sql-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Sql/servers', format('sql-redsosten-{0}', variables('suffix')))]",
+                      "groupIds": [
+                        "sqlServer"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'vnet-redsosten', 'snet-db')]",
+                "[resourceId('Microsoft.Sql/servers', format('sql-redsosten-{0}', variables('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.database.windows.net",
+              "location": "global"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.database.windows.net', 'vnet-redsosten-link')]",
+              "location": "global",
+              "properties": {
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', 'vnet-redsosten')]"
+                },
+                "registrationEnabled": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.database.windows.net')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', 'vnet-redsosten')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}', 'pe-sql-redsosten', 'sql-dns-zone-group')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "sql-dns-config",
+                    "properties": {
+                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.database.windows.net')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.database.windows.net')]",
+                "[resourceId('Microsoft.Network/privateEndpoints', 'pe-sql-redsosten')]"
+              ]
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2024-10-01",
+              "name": "[format('aoai-redsosten-{0}', variables('suffix'))]",
+              "location": "[parameters('location')]",
+              "kind": "OpenAI",
+              "sku": {
+                "name": "S0"
+              },
+              "properties": {
+                "customSubDomainName": "[format('aoai-redsosten-{0}', variables('suffix'))]",
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2024-10-01",
+              "name": "[format('di-redsosten-{0}', variables('suffix'))]",
+              "location": "[parameters('location')]",
+              "kind": "FormRecognizer",
+              "sku": {
+                "name": "S0"
+              },
+              "properties": {
+                "customSubDomainName": "[format('di-redsosten-{0}', variables('suffix'))]",
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[format('kvredsosten{0}', variables('suffix'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "tenantId": "[subscription().tenantId]",
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "enableRbacAuthorization": true,
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-07-01",
+              "name": "[format('acrredsosten{0}', variables('suffix'))]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Basic"
+              },
+              "properties": {
+                "adminUserEnabled": false
+              }
+            },
+            {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2024-03-01",
+              "name": "[format('cae-redsosten-{0}', variables('suffix'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "vnetConfiguration": {
+                  "infrastructureSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'vnet-redsosten', 'snet-app')]"
+                },
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', format('log-redsosten-{0}', variables('suffix'))), '2023-09-01').customerId]",
+                    "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', format('log-redsosten-{0}', variables('suffix'))), '2023-09-01').primarySharedKey]"
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'vnet-redsosten', 'snet-app')]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-redsosten-{0}', variables('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "ca-redsosten-kiosco",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-redsosten-{0}', variables('suffix')))]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "registries": [
+                    {
+                      "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('acrredsosten{0}', variables('suffix'))), '2023-07-01').loginServer]",
+                      "identity": "system"
+                    }
+                  ],
+                  "ingress": {
+                    "external": true,
+                    "targetPort": "[parameters('containerTargetPort')]",
+                    "transport": "auto"
+                  }
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "kiosco",
+                      "image": "[parameters('containerImage')]",
+                      "resources": {
+                        "cpu": "[json('0.25')]",
+                        "memory": "0.5Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "AZURE_SQL_SERVER",
+                          "value": "[reference(resourceId('Microsoft.Sql/servers', format('sql-redsosten-{0}', variables('suffix'))), '2023-08-01-preview').fullyQualifiedDomainName]"
+                        },
+                        {
+                          "name": "AZURE_SQL_DATABASE",
+                          "value": "sqldb-redsosten"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_ENDPOINT",
+                          "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', format('aoai-redsosten-{0}', variables('suffix'))), '2024-10-01').endpoint]"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_DEPLOYMENT",
+                          "value": "[parameters('openAiDeployment')]"
+                        },
+                        {
+                          "name": "DOCUMENT_INTELLIGENCE_ENDPOINT",
+                          "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', format('di-redsosten-{0}', variables('suffix'))), '2024-10-01').endpoint]"
+                        },
+                        {
+                          "name": "AZURE_KEY_VAULT_URL",
+                          "value": "[reference(resourceId('Microsoft.KeyVault/vaults', format('kvredsosten{0}', variables('suffix'))), '2023-07-01').vaultUri]"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 1
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', format('acrredsosten{0}', variables('suffix')))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('di-redsosten-{0}', variables('suffix')))]",
+                "[resourceId('Microsoft.KeyVault/vaults', format('kvredsosten{0}', variables('suffix')))]",
+                "[resourceId('Microsoft.App/managedEnvironments', format('cae-redsosten-{0}', variables('suffix')))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('aoai-redsosten-{0}', variables('suffix')))]",
+                "[resourceId('Microsoft.Sql/servers/databases', format('sql-redsosten-{0}', variables('suffix')), 'sqldb-redsosten')]",
+                "[resourceId('Microsoft.Sql/servers', format('sql-redsosten-{0}', variables('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ContainerRegistry/registries', format('acrredsosten{0}', variables('suffix')))]",
+              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('acrredsosten{0}', variables('suffix'))), resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), 'AcrPull')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), '2024-03-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', format('acrredsosten{0}', variables('suffix')))]",
+                "[resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', format('kvredsosten{0}', variables('suffix')))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', format('kvredsosten{0}', variables('suffix'))), resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), 'KeyVaultSecretsUser')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), '2024-03-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco')]",
+                "[resourceId('Microsoft.KeyVault/vaults', format('kvredsosten{0}', variables('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', format('aoai-redsosten-{0}', variables('suffix')))]",
+              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', format('aoai-redsosten-{0}', variables('suffix'))), resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), 'CognitiveServicesOpenAIUser')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), '2024-03-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco')]",
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('aoai-redsosten-{0}', variables('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', format('di-redsosten-{0}', variables('suffix')))]",
+              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', format('di-redsosten-{0}', variables('suffix'))), resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), 'CognitiveServicesUser')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), '2024-03-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4388-baec-2e7a223487b3')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco')]",
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('di-redsosten-{0}', variables('suffix')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "containerAppUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), '2024-03-01').configuration.ingress.fqdn)]"
+            },
+            "sqlServerName": {
+              "type": "string",
+              "value": "[format('sql-redsosten-{0}', variables('suffix'))]"
+            },
+            "acrLoginServer": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('acrredsosten{0}', variables('suffix'))), '2023-07-01').loginServer]"
+            },
+            "openAiEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', format('aoai-redsosten-{0}', variables('suffix'))), '2024-10-01').endpoint]"
+            },
+            "documentIntelligenceEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', format('di-redsosten-{0}', variables('suffix'))), '2024-10-01').endpoint]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[format('kvredsosten{0}', variables('suffix'))]"
+            },
+            "managedIdentityPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', 'ca-redsosten-kiosco'), '2024-03-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "containerAppUrl": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'redsosten-infrastructure'), '2025-04-01').outputs.containerAppUrl.value]"
+    },
+    "sqlServerName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'redsosten-infrastructure'), '2025-04-01').outputs.sqlServerName.value]"
+    },
+    "acrLoginServer": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'redsosten-infrastructure'), '2025-04-01').outputs.acrLoginServer.value]"
+    },
+    "openAiEndpoint": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'redsosten-infrastructure'), '2025-04-01').outputs.openAiEndpoint.value]"
+    },
+    "documentIntelligenceEndpoint": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'redsosten-infrastructure'), '2025-04-01').outputs.documentIntelligenceEndpoint.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'redsosten-infrastructure'), '2025-04-01').outputs.keyVaultName.value]"
+    },
+    "managedIdentityPrincipalId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'redsosten-infrastructure'), '2025-04-01').outputs.managedIdentityPrincipalId.value]"
+    }
+  }
+}

@@ -18,7 +18,7 @@ def extraer_texto_anuncio(documento: bytes) -> str:
 
     try:
         from azure.ai.documentintelligence import DocumentIntelligenceClient
-        from azure.core.exceptions import AzureError
+        from azure.core.exceptions import AzureError, HttpResponseError
     except ImportError as error:
         logger.exception("azure-ai-documentintelligence no está instalado.")
         return f"No fue posible procesar el anuncio: {error}"
@@ -34,6 +34,17 @@ def extraer_texto_anuncio(documento: bytes) -> str:
             "prebuilt-read", body=documento
         ).result()
         return result.content or "No se detectó texto legible en la imagen."
-    except (AzureError, ImportError, OSError, ValueError) as error:
+    except HttpResponseError as error:
+        logger.exception(
+            "Document Intelligence devolvio HTTP %s.",
+            getattr(error, "status_code", "desconocido"),
+        )
+        if getattr(error, "status_code", None) == 503:
+            return (
+                "El servicio de lectura está temporalmente ocupado. "
+                "Espera unos segundos y vuelve a intentarlo."
+            )
+        return "No fue posible leer el anuncio en este momento. Inténtalo nuevamente."
+    except (AzureError, ImportError, OSError, TimeoutError, ValueError) as error:
         logger.exception("No fue posible procesar el anuncio con Document Intelligence.")
-        return f"No fue posible procesar el anuncio: {error}"
+        return "No fue posible procesar el anuncio. Verifica la imagen e inténtalo nuevamente."

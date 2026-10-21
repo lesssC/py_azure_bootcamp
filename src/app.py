@@ -210,10 +210,28 @@ with tab_bodega:
         key="foto_anuncio",
     )
     if foto:
-        st.image(foto, caption="Vista previa del anuncio", width=350)
-        if st.button(":material/document_scanner: Leer anuncio", width="stretch"):
+        foto_bytes = foto.getvalue()
+        if len(foto_bytes) > 10 * 1024 * 1024:
+            st.error(
+                "La imagen es demasiado grande. Selecciona una foto de máximo 10 MB.",
+                icon=":material/image_not_supported:",
+            )
+            foto = None
+        try:
+            if foto:
+                st.image(foto_bytes, caption="Vista previa del anuncio", width=350)
+        except (OSError, ValueError):
+            st.error(
+                "No pudimos abrir esta imagen. Usa un archivo JPG o PNG válido.",
+                icon=":material/broken_image:",
+            )
+            foto = None
+
+        if foto and st.button(
+            ":material/document_scanner: Leer anuncio", width="stretch"
+        ):
             with st.spinner("Estamos leyendo el anuncio..."):
-                texto_anuncio = extraer_texto_anuncio(foto.getvalue())
+                texto_anuncio = extraer_texto_anuncio(foto_bytes)
                 st.session_state["texto_anuncio"] = texto_anuncio
                 st.session_state["campos_anuncio"] = estructurar_anuncio(texto_anuncio)
 

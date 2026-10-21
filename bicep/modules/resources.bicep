@@ -7,6 +7,7 @@ param entraAdminObjectId string
 param entraAdminLogin string
 param containerImage string
 param containerTargetPort int
+param containerMinReplicas int = 1
 
 // Incluye la región para evitar colisiones con recursos de Cognitive Services
 // eliminados recientemente (soft delete) de despliegues anteriores.
@@ -300,7 +301,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: containerMinReplicas
         maxReplicas: 1
       }
     }

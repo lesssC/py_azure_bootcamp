@@ -18,6 +18,8 @@ param entraAdminLogin string = ''
 @description('Imagen inicial para la validacion de infraestructura.')
 param containerImage string
 param containerTargetPort int = 80
+@description('Numero minimo de replicas para evitar pantallas de arranque en frio.')
+param containerMinReplicas int = 1
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
@@ -36,6 +38,7 @@ module infrastructure 'modules/resources.bicep' = {
     entraAdminLogin: entraAdminLogin
     containerImage: containerImage
     containerTargetPort: containerTargetPort
+    containerMinReplicas: containerMinReplicas
   }
 }
 

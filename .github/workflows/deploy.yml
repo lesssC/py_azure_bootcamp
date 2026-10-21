@@ -54,4 +54,6 @@ jobs:
       - name: Update Container App
         run: |
           az containerapp update --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" \
-            --image "$ACR_NAME.azurecr.io/redsosten:${{ github.sha }}"
+            --image "$ACR_NAME.azurecr.io/redsosten:${{ github.sha }}" \
+            --min-replicas 1 \
+            --max-replicas 1

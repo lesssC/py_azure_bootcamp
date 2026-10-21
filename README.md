@@ -139,7 +139,9 @@ az deployment sub create `
 
 El `quickstart` se incluye solo como imagen inicial de validación de recursos y
 usa el puerto 80 por defecto. Para ejecutar la aplicación final, el workflow
-publica la imagen y actualiza el puerto a 8501:
+publica la imagen, conserva una réplica activa para evitar que el usuario vea
+la pantalla temporal `App port is not ready` durante un arranque en frío y
+actualiza el puerto a 8501:
 
 ```powershell
 az containerapp update `
@@ -148,11 +150,16 @@ az containerapp update `
   --image "$acrLoginServer/redsosten:latest" `
   --registry-server $acrLoginServer `
   --registry-identity system `
-  --target-port 8501
+  --target-port 8501 `
+  --min-replicas 1 `
+  --max-replicas 1
 ```
 
 También puedes desplegar una imagen propia desde el inicio pasando
-`containerTargetPort=8501`.
+`containerTargetPort=8501` y `containerMinReplicas=1`. Mantener una réplica
+activa mejora la experiencia de entrada, pero no permite que el cómputo baje a
+cero; si se prioriza el ahorro máximo, puedes usar `containerMinReplicas=0` y
+aceptar el arranque en frío.
 
 > Azure SQL Serverless, Container Apps a cero y Log Analytics no significan
 > costo total garantizado de cero. Revisa Cost Management y elimina el grupo de
